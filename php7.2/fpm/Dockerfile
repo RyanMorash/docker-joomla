@@ -58,19 +58,28 @@ RUN set -ex; \
 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
 	rm -rf /var/lib/apt/lists/*
 
-VOLUME /var/www/html
+RUN   \
+   rm -f /var/log/apache2/* \
+   && rmdir /var/lock/apache2 \
+   && rmdir /var/run/apache2 \
+   && rmdir /var/log/apache2 \
+   && chmod 777 /var/log \
+   && chmod 777 /var/run \
+   && chmod 777 /var/lock \
+   && chmod 777 /bin/init_container.sh \
+   && cp /bin/apache2.conf /etc/apache2/apache2.conf \
+   && rm -rf /var/www/html \
+   && rm -rf /var/log/apache2 \
+   && mkdir -p /home/LogFiles \
+   && ln -s /home/site/wwwroot /var/www/html \
+   && ln -s /home/LogFiles /var/log/apache2 
 
-# Define Joomla version and expected SHA1 signature
-ENV JOOMLA_VERSION 3.8.12
-ENV JOOMLA_SHA1 a354eb7689fe3077d1a14ba3f8a7327017bafd1b
-
-# Download package and extract to web volume
-RUN curl -o joomla.tar.bz2 -SL https://github.com/joomla/joomla-cms/releases/download/${JOOMLA_VERSION}/Joomla_${JOOMLA_VERSION}-Stable-Full_Package.tar.bz2 \
-	&& echo "$JOOMLA_SHA1 *joomla.tar.bz2" | sha1sum -c - \
-	&& mkdir /usr/src/joomla \
-	&& tar -xf joomla.tar.bz2 -C /usr/src/joomla \
-	&& rm joomla.tar.bz2 \
-	&& chown -R www-data:www-data /usr/src/joomla
+# Setup SSH for Azure App Service
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssh-server \
+    && echo "root:Docker!" | chpasswd
+COPY sshd_config /etc/ssh/
+EXPOSE 2222 8080
 
 # Copy init scripts and custom .htaccess
 COPY docker-entrypoint.sh /entrypoint.sh
